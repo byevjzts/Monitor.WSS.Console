@@ -10,20 +10,44 @@ namespace Monitor.WSS.Console
 {
     class Program
     {
+        //static delegate void DelegateTimerTicked(TimerTicked);
+
+        static int timerAndPingTimeout  = 3000;
+
         static void Log(string s)
         {
-            
+            Log(s, false);
+        }
+        static void Log(string s, bool isError)
+        {
+            if (isError)
+                System.Console.ForegroundColor = System.ConsoleColor.Red;
+            else
+                System.Console.ForegroundColor = System.ConsoleColor.Yellow;
+
             System.Console.WriteLine(s);
         }
         static void Main(string[] args)
         {
-            System.Console.ForegroundColor = System.ConsoleColor.Yellow;
-            MonitorStorageServer("192.168.0.1");
+            AutoResetEvent autoEvent = new AutoResetEvent(false);
+
+
+            TimerCallback tcb = TimerTicked;
+
+            Timer t = new Timer(tcb, autoEvent, 0, timerAndPingTimeout);
+
+            //keep app open
+            System.Console.ReadLine();
+
+        }
+
+        protected static void TimerTicked(object state)
+        {
+            MonitorStorageServer("192.168.1.116");
         }
 
         protected static void MonitorStorageServer(string address)
-        {
-            AutoResetEvent waiter = new AutoResetEvent(false);
+        {          
             Ping pingSender = new Ping();
 
             pingSender.PingCompleted += new PingCompletedEventHandler(PingCompletedCallback);
@@ -32,75 +56,54 @@ namespace Monitor.WSS.Console
             string data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
             byte[] buffer = Encoding.ASCII.GetBytes(data);
 
-            // Wait 12 seconds for a reply.
-            int timeout = 12000;
-
-            // Set options for transmission:
-            // The data can go through 64 gateways or routers
-            // before it is destroyed, and the data packet
-            // cannot be fragmented.
+            //set options
             PingOptions options = new PingOptions(64, true);
 
-            // Send the ping asynchronously.
-            // Use the waiter as the user token.
-            // When the callback completes, it can wake up this thread.
-            pingSender.SendAsync(address, timeout, buffer, options, waiter);
+            //send ping (async)
+            pingSender.SendAsync(address, timerAndPingTimeout, buffer, options, address);
 
-            // Prevent this example application from ending.
-            // A real application should do something useful
-            // when possible.
-            waiter.WaitOne();
-            Log("Ping example completed.");
-            System.Console.ReadLine();
+
+
         }
         public static void PingCompletedCallback(object sender, PingCompletedEventArgs e)
         {
-            // If the operation was canceled, display a message to the user.
             if (e.Cancelled)
             {
                 Log("Ping canceled.");
-
-                // Let the main thread resume. 
-                // UserToken is the AutoResetEvent object that the main thread 
-                // is waiting for.
-                ((AutoResetEvent)e.UserState).Set();
+                return;
             }
 
-            // If an error occurred, display the exception to the user.
+            
             if (e.Error != null)
             {
                 Log("Ping failed:");
                 Log(e.Error.ToString());
-
-                // Let the main thread resume. 
-                ((AutoResetEvent)e.UserState).Set();
+                return;
             }
-
+            
             PingReply reply = e.Reply;
 
-            DisplayReply(reply);
-
-            // Let the main thread resume.
-            ((AutoResetEvent)e.UserState).Set();
+            DisplayReply(reply,e.UserState.ToString());
         }
 
-        public static void DisplayReply(PingReply reply)
+        public static void DisplayReply(PingReply reply, string address)
         {
             if (reply == null)
                 return;
 
-            Log(String.Format("ping status: {0}", reply.Status));
             if (reply.Status == IPStatus.Success)
             {
-                Log(String.Format("Address: {0}", reply.Address.ToString()));
-                Log(String.Format("RoundTrip time: {0}", reply.RoundtripTime));
-                Log(String.Format("Time to live: {0}", reply.Options.Ttl));
-                Log(String.Format("Don't fragment: {0}", reply.Options.DontFragment));
-                Log(String.Format("Buffer size: {0}", reply.Buffer.Length));
+                Log(String.Format("Reply from {0} with resonse time {1}", 
+                    reply.Address.ToString(), 
+                    reply.RoundtripTime.ToString()
+                    ));
             }
             else
             {
-                //failed
+                string add = address;
+                string stat = reply.Status.ToString();
+                string fail = String.Format("Failed Response to {0} - {1}", add, stat);
+                Log(fail, true);
             }
         }
 
