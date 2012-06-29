@@ -14,24 +14,12 @@ namespace Monitor.WSS.Console
 
         static int timerAndPingTimeout  = 3000;
 
-        static void Log(string s)
-        {
-            Log(s, false);
-        }
-        static void Log(string s, bool isError)
-        {
-            if (isError)
-                System.Console.ForegroundColor = System.ConsoleColor.Red;
-            else
-                System.Console.ForegroundColor = System.ConsoleColor.Yellow;
-
-            System.Console.WriteLine(s);
-        }
+        
         static void Main(string[] args)
         {
+            clsSettings.GetSettings();
+
             AutoResetEvent autoEvent = new AutoResetEvent(false);
-
-
             TimerCallback tcb = TimerTicked;
 
             Timer t = new Timer(tcb, autoEvent, 0, timerAndPingTimeout);
@@ -105,6 +93,20 @@ namespace Monitor.WSS.Console
                 string fail = String.Format("Failed Response to {0} - {1}", add, stat);
                 Log(fail, true);
             }
+        }
+
+        static void Log(string s)
+        {
+            Log(s, false);
+        }
+        static void Log(string s, bool isError)
+        {
+            if (isError)
+                System.Console.ForegroundColor = System.ConsoleColor.Red;
+            else
+                System.Console.ForegroundColor = System.ConsoleColor.Yellow;
+
+            System.Console.WriteLine(s);
         }
 
     }
